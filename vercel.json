@@ -1,0 +1,19 @@
+{
+  "routes": [
+    {
+      "src": "/sw.js",
+      "dest": "/sw.js",
+      "headers": {
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Service-Worker-Allowed": "/"
+      }
+    },
+    {
+      "src": "/workbox-(.*)\\.js",
+      "dest": "/workbox-$1.js",
+      "headers": { "Cache-Control": "no-cache, no-store, must-revalidate" }
+    },
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/" }
+  ]
+}
