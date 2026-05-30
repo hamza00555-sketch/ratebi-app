@@ -1,12 +1,14 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext.jsx';
 import { currentMonth, currentMonthLabel, formatAmount, daysUntil } from '../utils/format.js';
 import { calcSpent, calcCommitmentsTotal, calcGoalsMonthlyTotal } from '../utils/calc.js';
 import { getCatData, COMMITMENT_CATEGORIES } from '../components/CategoryData.js';
 import DonutChart from '../components/DonutChart.jsx';
+import ExtraIncomeSheet from './ExtraIncomeSheet.jsx';
 
 export default function Dashboard() {
-  const { settings, commitments, goals, expenses, currentMonthRecord, setPage } = useApp();
+  const { settings, commitments, goals, expenses, extraIncome, currentMonthRecord, setPage, fmt, togglePrivacy, privacyMode } = useApp();
+  const [showExtraIncome, setShowExtraIncome] = useState(false);
 
   const month = currentMonth();
   const record = currentMonthRecord;
@@ -16,7 +18,8 @@ export default function Dashboard() {
   const goalsTotal = record?.goalsTotal || calcGoalsMonthlyTotal(goals);
   const expenseBudget = record?.expenseBudget || settings.expenseBudget || 0;
   const spent = useMemo(() => calcSpent(expenses, month), [expenses, month]);
-  const remaining = salary - commitmentsTotal - goalsTotal - spent;
+  const totalExtra = useMemo(() => extraIncome.reduce((s, e) => s + (e.amount || 0), 0), [extraIncome]);
+  const remaining = salary + totalExtra - commitmentsTotal - goalsTotal - spent;
 
   const segments = [
     { label: 'التزامات', value: commitmentsTotal, color: '#FF6B6B' },
@@ -43,12 +46,18 @@ export default function Dashboard() {
             <div style={{ fontSize: 13, color: 'var(--text2)' }}>{currentMonthLabel()}</div>
             <div style={{ fontSize: 20, fontWeight: 900 }}>راتبي 💼</div>
           </div>
-          {record && (
-            <div style={{ textAlign: 'left', background: 'var(--accent-dim)', borderRadius: 10, padding: '6px 12px' }}>
-              <div style={{ fontSize: 11, color: 'var(--accent)' }}>الراتب</div>
-              <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--accent)' }}>{formatAmount(salary)} ريال</div>
-            </div>
-          )}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button onClick={togglePrivacy} style={{
+              background: 'var(--card2)', border: 'none', borderRadius: 10, width: 36, height: 36,
+              cursor: 'pointer', fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>{privacyMode ? '🙈' : '👁️'}</button>
+            {record && (
+              <div style={{ textAlign: 'left', background: 'var(--accent-dim)', borderRadius: 10, padding: '6px 12px' }}>
+                <div style={{ fontSize: 11, color: 'var(--accent)' }}>الراتب</div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--accent)' }}>{fmt(salary)} ريال</div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Donut Chart */}
@@ -56,7 +65,7 @@ export default function Dashboard() {
           <DonutChart segments={segments} size={160} strokeWidth={20}>
             <div style={{ fontSize: 12, color: 'var(--text2)' }}>متبقي</div>
             <div style={{ fontSize: 20, fontWeight: 900, color: remaining >= 0 ? 'var(--accent)' : 'var(--danger)' }}>
-              {formatAmount(Math.abs(remaining))}
+              {fmt(Math.abs(remaining))}
             </div>
             <div style={{ fontSize: 11, color: 'var(--text2)' }}>ريال</div>
           </DonutChart>
@@ -77,15 +86,27 @@ export default function Dashboard() {
 
         {/* Stats Grid */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <StatCard label="صرفت هذا الشهر" value={spent} suffix="ريال" color="var(--primary)" icon="💸" />
-          <StatCard label="التزامات الشهر" value={commitmentsTotal} suffix="ريال" color="var(--danger)" icon="📋" />
-          <StatCard label="أهداف الشهر" value={goalsTotal} suffix="ريال" color="var(--gold)" icon="🎯" />
-          <StatCard
-            label="متاح للصرف"
-            value={Math.max(0, expenseBudget - spent)}
-            suffix="ريال" color="var(--accent)" icon="✅"
-          />
+          <StatCard label="صرفت هذا الشهر" value={spent} suffix="ريال" color="var(--primary)" icon="💸" fmt={fmt} />
+          <StatCard label="التزامات الشهر" value={commitmentsTotal} suffix="ريال" color="var(--danger)" icon="📋" fmt={fmt} />
+          <StatCard label="أهداف الشهر" value={goalsTotal} suffix="ريال" color="var(--gold)" icon="🎯" fmt={fmt} />
+          <StatCard label="دخل إضافي" value={totalExtra} suffix="ريال" color="var(--accent)" icon="💰" fmt={fmt} onClick={() => setShowExtraIncome(true)} />
         </div>
+
+        {/* Extra Income Banner */}
+        {totalExtra > 0 && (
+          <button onClick={() => setShowExtraIncome(true)} style={{
+            background: 'var(--accent-dim)', border: '1px solid var(--accent)', borderRadius: 'var(--r)',
+            padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer',
+            width: '100%', fontFamily: 'Mestika, Cairo, sans-serif', textAlign: 'right',
+          }}>
+            <span style={{ fontSize: 24 }}>💰</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700, color: 'var(--accent)', fontSize: 14 }}>دخل إضافي هذا الشهر</div>
+              <div style={{ fontSize: 13, color: 'var(--text2)' }}>+{fmt(totalExtra)} ريال</div>
+            </div>
+            <span style={{ color: 'var(--text3)', fontSize: 18 }}>←</span>
+          </button>
+        )}
 
         {/* Expense Budget Progress */}
         {expenseBudget > 0 && (
@@ -154,17 +175,20 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* FAB */}
-      <button className="fab" onClick={() => setPage('expenses')}>+</button>
+      {/* FAB — Extra Income */}
+      <button className="fab" onClick={() => setShowExtraIncome(true)} style={{ bottom: 100 }}>💰</button>
+
+      {/* Extra Income Sheet */}
+      <ExtraIncomeSheet open={showExtraIncome} onClose={() => setShowExtraIncome(false)} />
     </div>
   );
 }
 
-function StatCard({ label, value, suffix, color, icon }) {
+function StatCard({ label, value, suffix, color, icon, fmt, onClick }) {
   return (
-    <div className="card" style={{ textAlign: 'center' }}>
+    <div className="card" style={{ textAlign: 'center', cursor: onClick ? 'pointer' : 'default' }} onClick={onClick}>
       <div style={{ fontSize: 24, marginBottom: 6 }}>{icon}</div>
-      <div style={{ fontSize: 20, fontWeight: 900, color }}>{formatAmount(value)}</div>
+      <div style={{ fontSize: 20, fontWeight: 900, color }}>{fmt ? fmt(value) : formatAmount(value)}</div>
       <div style={{ fontSize: 11, color: 'var(--text2)', marginTop: 2 }}>{suffix}</div>
       <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>{label}</div>
     </div>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext.jsx';
 import { formatAmount, daysUntil } from '../utils/format.js';
 import { getCatData, COMMITMENT_CATEGORIES } from '../components/CategoryData.js';
@@ -13,6 +13,7 @@ export default function Commitments() {
   const [editItem, setEditItem] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [celebrated, setCelebrated] = useState(false);
 
   const enriched = commitments.map(c => ({
     ...c,
@@ -52,7 +53,10 @@ export default function Commitments() {
   }
 
   async function togglePaid(c) {
-    await updateCommitment({ ...c, paidThisMonth: !c.paidThisMonth });
+    const updated = { ...c, paidThisMonth: !c.paidThisMonth };
+    await updateCommitment(updated);
+    const allPaid = commitments.filter(x => x.id !== c.id).every(x => x.paidThisMonth) && updated.paidThisMonth;
+    if (allPaid && commitments.length > 0) setCelebrated(true);
   }
 
   function getBadge(c) {
@@ -80,6 +84,42 @@ export default function Commitments() {
       </div>
 
       <div style={{ padding: '14px 16px 0' }}>
+        {/* Challenge Banner */}
+        {commitments.length > 0 && (
+          <div style={{
+            background: paidCount === commitments.length
+              ? 'linear-gradient(135deg, var(--accent-dim), rgba(0,201,167,0.05))'
+              : 'linear-gradient(135deg, var(--primary-dim), rgba(108,99,255,0.05))',
+            border: `1px solid ${paidCount === commitments.length ? 'var(--accent)' : 'var(--primary)'}`,
+            borderRadius: 'var(--r)', padding: '14px 16px', marginBottom: 16,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+              <span style={{ fontSize: 22 }}>{paidCount === commitments.length ? '🏆' : '🎮'}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 800, fontSize: 15 }}>
+                  {paidCount === commitments.length ? 'أكملت تحدي الشهر! 🎉' : 'تحدي الشهر'}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 2 }}>
+                  {paidCount} / {commitments.length} التزام مدفوع
+                </div>
+              </div>
+              <div style={{
+                fontSize: 16, fontWeight: 900,
+                color: paidCount === commitments.length ? 'var(--accent)' : 'var(--primary)',
+              }}>{Math.round((paidCount / commitments.length) * 100)}%</div>
+            </div>
+            <div className="progress-track" style={{ height: 6 }}>
+              <div className="progress-fill" style={{
+                width: `${Math.round((paidCount / commitments.length) * 100)}%`,
+                background: paidCount === commitments.length
+                  ? 'var(--accent)'
+                  : 'linear-gradient(90deg, var(--primary), #A78BFA)',
+                transition: 'width .4s ease',
+              }} />
+            </div>
+          </div>
+        )}
+
         {/* Filter */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
           {[['all', 'الكل'], ['upcoming', 'قادم'], ['paid', 'مدفوع']].map(([id, label]) => (
@@ -196,6 +236,29 @@ export default function Commitments() {
           </div>
         </div>
       </BottomSheet>
+
+      {/* Celebration Overlay */}
+      {celebrated && (
+        <div className="anim-fadein" style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,.85)', zIndex: 500,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
+        }} onClick={() => setCelebrated(false)}>
+          <div className="card" style={{ textAlign: 'center', padding: 32, maxWidth: 320 }}>
+            <div style={{ fontSize: 64, marginBottom: 12 }}>🏆</div>
+            <div style={{ fontSize: 24, fontWeight: 900, marginBottom: 8 }}>أحسنت!</div>
+            <div style={{ color: 'var(--text2)', fontSize: 15, marginBottom: 24 }}>
+              أكملت كل التزاماتك الشهرية 🎉<br/>أنت بطل في إدارة مالياتك!
+            </div>
+            <div style={{
+              background: 'linear-gradient(135deg, var(--primary), var(--accent))',
+              borderRadius: 'var(--r)', padding: '14px',
+              fontWeight: 800, fontSize: 16, color: '#fff', cursor: 'pointer',
+            }} onClick={() => setCelebrated(false)}>
+              رائع! 💪
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

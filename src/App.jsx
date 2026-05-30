@@ -5,11 +5,12 @@ import SalaryDay from './pages/SalaryDay.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Commitments from './pages/Commitments.jsx';
 import Goals from './pages/Goals.jsx';
-import Expenses from './pages/Expenses.jsx';
+import Banks from './pages/Banks.jsx';
 import Settings from './pages/Settings.jsx';
+import LockScreen from './pages/LockScreen.jsx';
 
 function AppRouter() {
-  const { page, loading } = useApp();
+  const { page, loading, locked } = useApp();
 
   if (loading) return (
     <div style={{
@@ -28,17 +29,19 @@ function AppRouter() {
     </div>
   );
 
+  if (locked) return <LockScreen />;
+
   if (page === 'onboarding') return <Onboarding />;
   if (page === 'salaryDay') return <SalaryDay />;
 
-  const showNav = ['dashboard', 'commitments', 'goals', 'expenses', 'settings'].includes(page);
+  const showNav = ['dashboard', 'commitments', 'goals', 'banks', 'settings'].includes(page);
 
   return (
     <>
       {page === 'dashboard' && <Dashboard />}
       {page === 'commitments' && <Commitments />}
       {page === 'goals' && <Goals />}
-      {page === 'expenses' && <Expenses />}
+      {page === 'banks' && <Banks />}
       {page === 'settings' && <Settings />}
       {showNav && <BottomNav />}
     </>
